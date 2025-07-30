@@ -1,4 +1,10 @@
+# 换新的日志文件名
 flush logs;
+# 删除特定的binlog文件，以及之前的日志文件
+PURGE BINARY LOGS TO 'master-bin.000196';
+# 删除指定日期之前的binlog文件
+PURGE BINARY LOGS BEFORE '2025-07-30 20:00:00';
+
 
 CREATE DATABASE `maxwell`;
 
@@ -122,6 +128,7 @@ CREATE TABLE `tables`
   COLLATE = utf8mb4_unicode_ci;
 
 
+# drop DATABASE `test`;
 
 CREATE DATABASE `test`;
 
@@ -143,6 +150,10 @@ CREATE TABLE `tmp_02`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
+
+flush logs;
+
+# drop DATABASE `bac_schema`;
 
 CREATE DATABASE `bac_schema`;
 
@@ -170,6 +181,8 @@ CREATE TABLE `bac_schema`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
+
+flush logs;
 
 insert bac_history(name, `desc`, status) value
     (uuid(), uuid(), 1),
