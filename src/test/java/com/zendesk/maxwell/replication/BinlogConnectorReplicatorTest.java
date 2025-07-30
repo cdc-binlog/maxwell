@@ -92,7 +92,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		MaxwellContext context = MaxwellTestSupport.buildContext(server.getPort(), position, null);
 
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
+		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(""), new MysqlSchemaStore(context, position), position, context.getConfig(),  context.getHeartbeatNotifier());
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
 			new MysqlSchemaStore(context, position),
 			new BufferedProducer(context, 1),
@@ -166,7 +166,6 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		});
 
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
 				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
@@ -217,7 +216,6 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		});
 
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
 				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
@@ -284,8 +282,6 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 			config.maxwellMysql.enableHeartbeat = true;
 		});
 
-		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
 				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),

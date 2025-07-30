@@ -21,7 +21,7 @@ public class DatabaseAlter extends SchemaChange {
 		if ( filter == null ) {
 			return false;
 		} else {
-			return filter.isDatabaseBlocklisted(database);
+			return filter.isDatabaseBlacklisted(database);
 		}
 	}
 }

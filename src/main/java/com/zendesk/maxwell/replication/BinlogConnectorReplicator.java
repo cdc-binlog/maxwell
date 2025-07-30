@@ -24,6 +24,8 @@ import com.zendesk.maxwell.row.RowMapBuffer;
 import com.zendesk.maxwell.schema.Schema;
 import com.zendesk.maxwell.schema.SchemaStore;
 import com.zendesk.maxwell.schema.SchemaStoreException;
+import com.zendesk.maxwell.schema.Table;
+import com.zendesk.maxwell.schema.columndef.ColumnDefCastException;
 import com.zendesk.maxwell.schema.ddl.DDLMap;
 import com.zendesk.maxwell.schema.ddl.ResolvedSchemaChange;
 import com.zendesk.maxwell.scripting.Scripting;
@@ -33,12 +35,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
-import static com.zendesk.maxwell.replication.BinlogConnectorEventProcessor.CREATE_TABLE_PATTERN;
 
 public class BinlogConnectorReplicator extends RunLoopProcess implements Replicator, BinaryLogClient.LifecycleListener {
 	static final Logger LOGGER = LoggerFactory.getLogger(BinlogConnectorReplicator.class);
@@ -55,7 +58,6 @@ public class BinlogConnectorReplicator extends RunLoopProcess implements Replica
 	private BinlogConnectorEventListener binlogEventListener;
 	private BinlogConnectorLivenessMonitor binlogLivenessMonitor;
 	private final LinkedBlockingDeque<BinlogConnectorEvent> queue;
-	private final BinlogConnectorEventProcessor processor;
 	private final TableCache tableCache;
 	private final Scripting scripting;
 	private ServerException lastCommError;
@@ -146,7 +148,6 @@ public class BinlogConnectorReplicator extends RunLoopProcess implements Replica
 		Filter filter,
 		boolean ignoreMissingSchema,
 		MaxwellOutputConfig outputConfig,
-		BinlogConnectorEventProcessor processor,
 		float bufferMemoryUsage,
 		int replicationReconnectionRetries,
 		int binlogEventQueueSize
@@ -166,7 +167,6 @@ public class BinlogConnectorReplicator extends RunLoopProcess implements Replica
 		this.lastCommError = null;
 		this.bufferMemoryUsage = bufferMemoryUsage;
 		this.queue = new LinkedBlockingDeque<>(binlogEventQueueSize);
-		this.processor = processor;
 
 		/* setup metrics */
 		rowCounter = metrics.getRegistry().counter(

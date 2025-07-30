@@ -56,26 +56,25 @@ public class Recovery {
 			BinlogPosition binlogPosition = list.get(i);
 			Position position = Position.valueOf(binlogPosition, recoveryInfo.getHeartbeat());
 			Metrics metrics = new NoOpMetrics();
-			MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-			BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), schemaStore, position, outputConfig, new RecoveryFilter(this.maxwellDatabaseName), null, new HeartbeatNotifier(), true);
 
 			LOGGER.debug("scanning binlog: {}", binlogPosition);
 			Replicator replicator = new BinlogConnectorReplicator(
-					null,
-					null,
-					replicationConfig,
-					0L, // server-id of 0 activates "mysqlbinlog" behavior where the server will stop after each binlog
-					maxwellDatabaseName,
-					metrics,
-					position,
-					true,
-					recoveryInfo.clientID,
-					null,
-					outputConfig,
-					processor,
-					0.25f, // Default memory usage size, not used
-					1,
-					BINLOG_QUEUE_SIZE
+				this.schemaStore,
+				null,
+				null,
+				replicationConfig,
+				0L, // server-id of 0 activates "mysqlbinlog" behavior where the server will stop after each binlog
+				maxwellDatabaseName,
+				metrics,
+				position,
+				true,
+				recoveryInfo.clientID,
+				new HeartbeatNotifier(),
+				null,
+				new RecoveryFilter(this.maxwellDatabaseName),
+				new MaxwellOutputConfig(),
+				0.25f, // Default memory usage size, not used
+				1
 			);
 
 			HeartbeatRowMap h = findHeartbeat(replicator);

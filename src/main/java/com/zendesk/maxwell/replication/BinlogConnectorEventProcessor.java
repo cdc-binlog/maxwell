@@ -1,6 +1,7 @@
 package com.zendesk.maxwell.replication;
 
 import com.github.shyiko.mysql.binlog.event.*;
+import com.zendesk.maxwell.MaxwellConfig;
 import com.zendesk.maxwell.filtering.Filter;
 import com.zendesk.maxwell.producer.AbstractProducer;
 import com.zendesk.maxwell.producer.MaxwellOutputConfig;
@@ -34,6 +35,7 @@ public class BinlogConnectorEventProcessor {
 	public static final Pattern CREATE_TABLE_PATTERN = Pattern.compile("^CREATE\\s+TABLE", Pattern.CASE_INSENSITIVE);
 
 	private final TableCache tableCache;
+	private final MaxwellConfig config;
 	private final MaxwellOutputConfig outputConfig;
 	private final Filter filter;
 	private final SchemaStore schemaStore;
@@ -43,15 +45,17 @@ public class BinlogConnectorEventProcessor {
 
 	private Position lastHeartbeatPosition;
 
-	public BinlogConnectorEventProcessor(TableCache tableCache, SchemaStore schemaStore, Position start, MaxwellOutputConfig outputConfig, Filter filter, Scripting scripting, HeartbeatNotifier heartbeatNotifier, boolean replay) {
+	public BinlogConnectorEventProcessor(TableCache tableCache, SchemaStore schemaStore, Position start,
+										 MaxwellConfig config, HeartbeatNotifier heartbeatNotifier) {
 		this.tableCache = tableCache;
-		this.outputConfig = outputConfig;
-		this.filter = filter;
+		this.config = config;
+		this.outputConfig = config.outputConfig;
+		this.filter = config.filter;
 		this.lastHeartbeatPosition = start;
-		this.scripting = scripting;
+		this.scripting = config.scripting;
 		this.schemaStore = schemaStore;
 		this.heartbeatNotifier = heartbeatNotifier;
-		this.replay = replay;
+		this.replay = config.replayMode;
 	}
 
 	public Long getSchemaId() throws SchemaStoreException {
@@ -126,7 +130,7 @@ public class BinlogConnectorEventProcessor {
 			// There is no need to cache table
 			return;
 		}
-		tableCache.processEvent(schemaStore.getSchema(), filter, data.getTableId(), data.getDatabase(), data.getTable());
+		tableCache.processEvent(schemaStore.getSchema(), filter, config.getIgnoreMissingSchema(), data.getTableId(), data.getDatabase(), data.getTable());
 	}
 
 	public void clearTableCache() {
@@ -136,7 +140,7 @@ public class BinlogConnectorEventProcessor {
 	private boolean shouldOutputRowMap(RowMap row) {
 		String database = row.getDatabase();
 		String table = row.getTable();
-		return filter.isSystemAllowlist(database, table) || filter.includes(database, table, row.getData());
+		return filter.isSystemWhitelisted(database, table) || filter.includes(database, table, row.getData());
 	}
 
 	/**
@@ -161,10 +165,10 @@ public class BinlogConnectorEventProcessor {
 	 * @return Whether we should write the event to the producer
 	 */
 	private boolean shouldOutputEvent(String database, String table, Set<String> columnNames) {
-		if (Filter.isSystemBlocklisted(database, table)) {
+		if (Filter.isSystemBlacklisted(database, table)) {
 			return false;
 		}
-		if (filter.isSystemAllowlist(database, table)) {
+		if (filter.isSystemWhitelisted(database, table)) {
 			return true;
 		}
 		if (Filter.includes(filter, database, table)) {

@@ -271,7 +271,6 @@ public class Maxwell implements Runnable {
 
 		mysqlSchemaStore.getSchema(); // trigger schema to load / capture before we start the replicator.
 
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), mysqlSchemaStore, initPosition, config.outputConfig, context.getFilter(), config.scripting, context.getHeartbeatNotifier(), config.replayMode);
 		this.replicator = new BinlogConnectorReplicator(
 			mysqlSchemaStore,
 			producer,
@@ -288,7 +287,6 @@ public class Maxwell implements Runnable {
 			context.getFilter(),
 			context.getConfig().getIgnoreMissingSchema(),
 			config.outputConfig,
-			processor,
 			config.bufferMemoryUsage,
 			config.replicationReconnectionRetries,
 			config.binlogEventQueueSize

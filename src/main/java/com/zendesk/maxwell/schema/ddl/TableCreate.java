@@ -76,7 +76,7 @@ public class TableCreate extends SchemaChange {
 		if ( filter == null ) {
 			return false;
 		} else {
-			return filter.isTableBlocklisted(this.database, this.table);
+			return filter.isTableBlacklisted(this.database, this.table);
 		}
 	}
 

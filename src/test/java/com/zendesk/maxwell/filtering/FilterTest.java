@@ -84,8 +84,8 @@ public class FilterTest {
 		Filter f = new Filter("blacklist: seria.*");
 		assertTrue(f.includes("foo", "bar"));
 		assertFalse(f.includes("seria", "var"));
-		assertTrue(f.isDatabaseBlocklisted("seria"));
-		assertTrue(f.isTableBlocklisted("seria", "anything"));
+		assertTrue(f.isDatabaseBlacklisted("seria"));
+		assertTrue(f.isTableBlacklisted("seria", "anything"));
 	}
 
 	@Test
