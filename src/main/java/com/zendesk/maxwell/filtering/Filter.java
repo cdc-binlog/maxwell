@@ -1,14 +1,14 @@
 package com.zendesk.maxwell.filtering;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Filter {
+	static final Logger LOGGER = LoggerFactory.getLogger(Filter.class);
 
 	private final List<FilterPattern> patterns;
 	private String maxwellDB;
@@ -41,7 +41,7 @@ public class Filter {
 		this.patterns.addAll(parsedFilter);
 	}
 
-	public boolean isSystemAllowlist(String database, String table) {
+	public boolean isSystemWhitelisted(String database, String table) {
 		return isMaxwellDB(database)
 			&& ("bootstrap".equals(table) || "heartbeats".equals(table));
 	}
@@ -77,8 +77,17 @@ public class Filter {
 		return match.include;
 	}
 
-	public boolean isTableBlocklisted(String database, String table) {
-		if ( isSystemBlocklisted(database, table) )
+	public boolean couldIncludeFromColumnFilters(String database, String table, Set<String> columns) {
+		for ( FilterPattern p : patterns ) {
+			if ( p.couldIncludeColumn(database, table, columns) )
+				return true;
+		}
+		return false;
+	}
+
+
+	public boolean isTableBlacklisted(String database, String table) {
+		if ( isSystemBlacklisted(database, table) )
 			return true;
 
 		if ( isMaxwellDB(database) )
@@ -94,7 +103,7 @@ public class Filter {
 		return !match.include;
 	}
 
-	public boolean isDatabaseBlocklisted(String database) {
+	public boolean isDatabaseBlacklisted(String database) {
 		if ( isMaxwellDB(database) )
 			return false;
 
@@ -108,7 +117,7 @@ public class Filter {
 		return false;
 	}
 
-	public static boolean isSystemBlocklisted(String databaseName, String tableName) {
+	public static boolean isSystemBlacklisted(String databaseName, String tableName) {
 		return "mysql".equals(databaseName) &&
 			("ha_health_check".equals(tableName) || StringUtils.startsWith(tableName, "rds_heartbeat"));
 	}
@@ -133,7 +142,7 @@ public class Filter {
 		if (filter == null) {
 			return false;
 		} else {
-			return filter.patterns.stream().anyMatch(p -> p.couldIncludeColumn(database, table, columnNames));
+			return filter.couldIncludeFromColumnFilters(database, table, columnNames);
 		}
 	}
 }

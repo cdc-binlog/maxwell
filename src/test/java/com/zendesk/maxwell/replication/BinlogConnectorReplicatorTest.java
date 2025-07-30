@@ -30,6 +30,8 @@ import java.util.concurrent.TimeoutException;
 
 import static com.zendesk.maxwell.replication.BinlogConnectorReplicator.BINLOG_QUEUE_SIZE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
@@ -76,6 +78,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 	@Test
 	public void testGTIDReconnects() throws Exception {
 		assumeTrue(MysqlIsolatedServer.getVersion().atLeast(MysqlIsolatedServer.VERSION_5_6));
+		assumeFalse(MysqlIsolatedServer.getVersion().isMariaDB);
 
 		MysqlIsolatedServer server = MaxwellTestSupport.setupServer("--gtid_mode=ON --enforce-gtid-consistency=true");
 		MaxwellTestSupport.setupSchema(server, false);
@@ -91,6 +94,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
 		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
+			new MysqlSchemaStore(context, position),
 			new BufferedProducer(context, 1),
 			null,
 			context.getConfig().maxwellMysql,
@@ -100,12 +104,12 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 			position,
 			false,
 			"maxwell-client",
+			new HeartbeatNotifier(),
 			null,
-			outputConfig,
-			processor,
+			context.getFilter(),
+			new MaxwellOutputConfig(),
 			context.getConfig().bufferMemoryUsage,
-			1,
-			BINLOG_QUEUE_SIZE
+			1
 		);
 
 		EventDeserializer eventDeserializer = new EventDeserializer();
@@ -141,6 +145,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 	@Test
 	public void testSetNullSchemaIdInProcessQueryEvent() throws Exception {
 		assumeTrue(MysqlIsolatedServer.getVersion().atLeast(MysqlIsolatedServer.VERSION_5_6));
+		assumeFalse(MysqlIsolatedServer.getVersion().isMariaDB);
 
 		MysqlIsolatedServer server = MaxwellTestSupport.setupServer("--gtid_mode=ON --enforce-gtid-consistency=true");
 		MaxwellTestSupport.setupSchema(server, false);
@@ -163,6 +168,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
 		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
+				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
 				context.getBootstrapController(null),
 				context.getConfig().maxwellMysql,
@@ -172,12 +178,12 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 				position,
 				false,
 				"maxwell-client",
+				new HeartbeatNotifier(),
 				null,
-				outputConfig,
-				processor,
+				context.getFilter(),
+				new MaxwellOutputConfig(),
 				context.getConfig().bufferMemoryUsage,
-				1,
-				BINLOG_QUEUE_SIZE
+				1
 		);
 
 		replicator.startReplicator();
@@ -189,6 +195,8 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 	@Test
 	public void testClientReconnectionAfterConnectionDropped() throws Exception {
 		assumeTrue(MysqlIsolatedServer.getVersion().atLeast(MysqlIsolatedServer.VERSION_5_6));
+		assumeFalse(MysqlIsolatedServer.getVersion().isMariaDB);
+
 
 		MysqlIsolatedServer server = MaxwellTestSupport.setupServer("--gtid_mode=ON --enforce-gtid-consistency=true");
 		MaxwellTestSupport.setupSchema(server, false);
@@ -211,6 +219,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
 		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
+				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
 				context.getBootstrapController(null),
 				context.getConfig().maxwellMysql,
@@ -220,12 +229,12 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 				position,
 				false,
 				"maxwell-client",
+				new HeartbeatNotifier(),
 				null,
-				outputConfig,
-				processor,
+				context.getFilter(),
+				new MaxwellOutputConfig(),
 				context.getConfig().bufferMemoryUsage,
-				0, //0 = unlimited
-				BINLOG_QUEUE_SIZE
+				0 //0 = unlimited
 		);
 		replicator.startReplicator();
 
@@ -255,6 +264,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 	@Test(expected = TimeoutException.class)
 	public void testMaximumReconnectionAttemptsReached() throws Exception {
 		assumeTrue(MysqlIsolatedServer.getVersion().atLeast(MysqlIsolatedServer.VERSION_5_6));
+		assumeFalse(MysqlIsolatedServer.getVersion().isMariaDB);
 
 		MysqlIsolatedServer server = MaxwellTestSupport.setupServer("--gtid_mode=ON --enforce-gtid-consistency=true");
 		MaxwellTestSupport.setupSchema(server, false);
@@ -277,6 +287,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
 		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
+				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
 				context.getBootstrapController(null),
 				context.getConfig().maxwellMysql,
@@ -286,12 +297,12 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 				position,
 				false,
 				"maxwell-client",
+				new HeartbeatNotifier(),
 				null,
-				outputConfig,
-				processor,
+				context.getFilter(),
+				new MaxwellOutputConfig(),
 				context.getConfig().bufferMemoryUsage,
-				3,
-				BINLOG_QUEUE_SIZE
+				3
 		);
 		replicator.startReplicator();
 		//simulates a drop connection
@@ -304,6 +315,7 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 
 	public void testClientReconnectionToDifferentServerAfterConnectionDroppedThrows() throws Exception {
 		assumeTrue(MysqlIsolatedServer.getVersion().atLeast(MysqlIsolatedServer.VERSION_5_6));
+		assumeFalse(MysqlIsolatedServer.getVersion().isMariaDB);
 
 		MysqlIsolatedServer server = MaxwellTestSupport.setupServer("--server_id=123");
 		MaxwellTestSupport.setupSchema(server, false);
@@ -323,9 +335,8 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 			config.maxwellMysql.enableHeartbeat = true;
 		});
 
-		MaxwellOutputConfig outputConfig = new MaxwellOutputConfig();
-		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), new MysqlSchemaStore(context, position), position, outputConfig, context.getFilter(), null, context.getHeartbeatNotifier(), context.getConfig().replayMode);
 		BinlogConnectorReplicator replicator = new BinlogConnectorReplicator(
+				new MysqlSchemaStore(context, position),
 				new StdoutProducer(context),
 				context.getBootstrapController(null),
 				context.getConfig().maxwellMysql,
@@ -335,13 +346,12 @@ public class BinlogConnectorReplicatorTest extends TestWithNameLogging {
 				position,
 				false,
 				"maxwell-client",
+				new HeartbeatNotifier(),
 				null,
-				outputConfig,
-				processor,
+				context.getFilter(),
+				new MaxwellOutputConfig(),
 				context.getConfig().bufferMemoryUsage,
-				3,
-				BINLOG_QUEUE_SIZE
-		);
+				3);
 		replicator.startReplicator();
 		replicator.getRow();
 

@@ -6,7 +6,9 @@ import com.zendesk.maxwell.bootstrap.BootstrapController;
 import com.zendesk.maxwell.producer.AbstractProducer;
 import com.zendesk.maxwell.recovery.Recovery;
 import com.zendesk.maxwell.recovery.RecoveryInfo;
-import com.zendesk.maxwell.replication.*;
+import com.zendesk.maxwell.replication.BinlogConnectorReplicator;
+import com.zendesk.maxwell.replication.Position;
+import com.zendesk.maxwell.replication.Replicator;
 import com.zendesk.maxwell.row.HeartbeatRowMap;
 import com.zendesk.maxwell.schema.*;
 import com.zendesk.maxwell.schema.columndef.ColumnDefCastException;
@@ -271,6 +273,7 @@ public class Maxwell implements Runnable {
 
 		BinlogConnectorEventProcessor processor = new BinlogConnectorEventProcessor(new TableCache(), mysqlSchemaStore, initPosition, config.outputConfig, context.getFilter(), config.scripting, context.getHeartbeatNotifier(), config.replayMode);
 		this.replicator = new BinlogConnectorReplicator(
+			mysqlSchemaStore,
 			producer,
 			bootstrapController,
 			config.replicationMysql,
@@ -280,7 +283,10 @@ public class Maxwell implements Runnable {
 			initPosition,
 			false,
 			config.clientID,
+			context.getHeartbeatNotifier(),
 			config.scripting,
+			context.getFilter(),
+			context.getConfig().getIgnoreMissingSchema(),
 			config.outputConfig,
 			processor,
 			config.bufferMemoryUsage,
@@ -339,13 +345,14 @@ public class Maxwell implements Runnable {
 		} catch ( URISyntaxException e ) {
 			// catch URISyntaxException explicitly as well to provide more information to the user
 			LOGGER.error("Syntax issue with URI, check for misconfigured host, port, database, or JDBC options (see RFC 2396)");
-			LOGGER.error("URISyntaxException: " + e.getLocalizedMessage());
+			LOGGER.error("URISyntaxException: " + e.getLocalizedMessage(), e);
 			System.exit(1);
 		} catch ( ServerException e ) {
-			LOGGER.error("Maxwell couldn't find the requested binlog, exiting...");
+			LOGGER.error("Maxwell couldn't find the requested binlog, exiting...", e);
 			System.exit(2);
 		} catch ( Exception e ) {
 			e.printStackTrace();
+			LOGGER.error("Maxwell saw an exception and is exiting...", e);
 			System.exit(1);
 		}
 	}

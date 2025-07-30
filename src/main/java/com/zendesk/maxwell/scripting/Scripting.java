@@ -1,5 +1,13 @@
 package com.zendesk.maxwell.scripting;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+
 import com.zendesk.maxwell.row.HeartbeatRowMap;
 import com.zendesk.maxwell.row.RowMap;
 import com.zendesk.maxwell.schema.ddl.DDLMap;
@@ -7,17 +15,12 @@ import org.openjdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
 public class Scripting {
 	static final Logger LOGGER = LoggerFactory.getLogger(Scripting.class);
 
 	private final ScriptObjectMirror processRowFunc, processHeartbeatFunc, processDDLFunc;
+
+	private LinkedHashMap<String, Object> globalJavascriptState;
 
 	private ScriptObjectMirror getFunc(ScriptEngine engine, String fName, String filename) {
 		ScriptObjectMirror f = (ScriptObjectMirror) engine.get(fName);
@@ -43,17 +46,19 @@ public class Scripting {
 		processHeartbeatFunc = getFunc(engine, "process_heartbeat", filename);
 		processDDLFunc = getFunc(engine, "process_ddl", filename);
 
+		globalJavascriptState = new LinkedHashMap<String, Object>();
+
 		if ( processRowFunc == null && processHeartbeatFunc == null && processDDLFunc == null )
 			LOGGER.warn("expected " + filename + " to define at least one of: process_row,process_heartbeat,process_ddl");
 	}
 
 	public void invoke(RowMap row) {
 		if ( row instanceof HeartbeatRowMap && processHeartbeatFunc != null )
-			processHeartbeatFunc.call(null, new WrappedHeartbeatMap((HeartbeatRowMap) row));
-		else if (row instanceof DDLMap && processDDLFunc != null)
-			processDDLFunc.call(null, new WrappedDDLMap((DDLMap) row));
-		else if (row != null && processRowFunc != null)
-			processRowFunc.call(null, new WrappedRowMap(row));
+			processHeartbeatFunc.call(null, new WrappedHeartbeatMap((HeartbeatRowMap) row), globalJavascriptState);
+		else if ( row instanceof DDLMap && processDDLFunc != null )
+			processDDLFunc.call(null, new WrappedDDLMap((DDLMap) row), globalJavascriptState);
+		else if ( row instanceof RowMap && processRowFunc != null )
+			processRowFunc.call(null, new WrappedRowMap(row), globalJavascriptState);
 	}
 
 	private static ThreadLocal<ScriptEngine> stringifyEngineThreadLocal = ThreadLocal.withInitial(() -> {

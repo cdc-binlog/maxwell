@@ -1,15 +1,217 @@
 # Maxwell changelog
 
+### [v1.44.0](https://github.com/zendesk/maxwell/releases/tag/v1.44.0)
+
+- Quite a few dependency upgrades
+
+
+
+_Released 2025-06-25_
+
+### [v1.43.2](https://github.com/zendesk/maxwell/releases/tag/v1.43.2)
+
+- fix more dependency issues in 1.43.1
+- fix parsing error for mysql heatwave
+
+
+
+_Released 2025-03-12_
+
+### [v1.43.1](https://github.com/zendesk/maxwell/releases/tag/v1.43.1)
+
+- fix kafka breakage
+
+
+
+_Released 2025-03-05_
+
+### [v1.42.3](https://github.com/zendesk/maxwell/releases/tag/v1.42.3)
+
+- Pull in an updated binlog-connector-java, notably fixing a major
+  problem with mariadb GTIDs
+
+
+
+_Released 2025-01-18_
+
+### [v1.42.2](https://github.com/zendesk/maxwell/releases/tag/v1.42.2)
+
+- update jdk on docker image
+- support rabbitmq + SSL
+- small fixes for latest maria
+- get tests running under mysql 8.4
+- remove Kinesis internal TTL, see #2147 for details
+- support bootstrapping from a replica that doesn't contain the maxwell database
+
+
+
+_Released 2025-01-09_
+
+### [v1.42.1](https://github.com/zendesk/maxwell/releases/tag/v1.42.1)
+
+- bugfix for 1.42.0, mysql 8.0.x and "SHOW BINARY LOG STATUS"
+
+
+
+_Released 2024-12-21_
+
+### [v1.42.0](https://github.com/zendesk/maxwell/releases/tag/v1.42.0)
+
+- initial support for mysql 8.4
+- support partitioning for sns and sqs
+- bugfix for maria
+
+
+
+_Released 2024-12-17_
+
+### [v1.41.2](https://github.com/zendesk/maxwell/releases/tag/v1.41.2)
+
+- Owen Derby is the Nick Clarke of Maxwell parser bugs
+
+
+
+_Released 2024-06-05_
+
+### [v1.41.1](https://github.com/zendesk/maxwell/releases/tag/v1.41.1)
+
+- fix 2 parser issues, one mariadb and one "tablespace" specific
+- upgrade lz4 dep for security
+
+
+
+_Released 2024-03-24_
+
+### [v1.41.0](https://github.com/zendesk/maxwell/releases/tag/v1.41.0)
+
+- javascript filters are now passed a second, optional dicionary
+  argument which persists between filter invocations.
+
+
+
+_Released 2023-11-30_
+
+### [v1.40.6](https://github.com/zendesk/maxwell/releases/tag/v1.40.6)
+
+- fix 2 parser bugs
+- upgrade jackson for security
+
+
+
+_Released 2023-11-04_
+
+### [v1.40.5](https://github.com/zendesk/maxwell/releases/tag/v1.40.5)
+
+- Fix a bug introduced in v1.40.2 in the kafka producer.
+
+
+
+_Released 2023-09-09_
+
+### [v1.40.4](https://github.com/zendesk/maxwell/releases/tag/v1.40.4)
+
+- add support for mariadb's DROP COLUMN IF EXISTS
+
+
+
+_Released 2023-09-01_
+
+### [v1.40.3](https://github.com/zendesk/maxwell/releases/tag/v1.40.3)
+
+- bugfix for "rename tables"
+- bugfix for temporary tables that rollback inside transactions
+- sns+localstack support
+
+
+
+_Released 2023-08-27_
+
+### [v1.40.2](https://github.com/zendesk/maxwell/releases/tag/v1.40.2)
+
+- fix dumb bug in last release
+
+
+
+_Released 2023-06-11_
+
+### [v1.40.0](https://github.com/zendesk/maxwell/releases/tag/v1.40.0)
+
+- add kafka 3.4.0
+- kafka 2.7.0 is now the default kafka library
+- add custom health-check factory jar thing
+
+
+
+_Released 2023-04-02_
+
+### [v1.39.6](https://github.com/zendesk/maxwell/releases/tag/v1.39.6)
+
+- Bugfix issue where SQL query would go missing (#1973)
+- Various parser bugfixes (#1970, #1982, #1987)
+- Fix issue with renaming a primary key column (#1977)
+
+
+
+_Released 2023-03-11_
+
+### [v1.39.5](https://github.com/zendesk/maxwell/releases/tag/v1.39.5)
+
+- a few parser fixes
+
+
+
+_Released 2023-02-08_
+
+### [v1.39.4](https://github.com/zendesk/maxwell/releases/tag/v1.39.4)
+
+- Fix bugs with older versions of mariadb (<10.4)
+
+
+
+_Released 2022-12-07_
+
+### [v1.39.3](https://github.com/zendesk/maxwell/releases/tag/v1.39.3)
+
+- some bugfixes for 1.39.2 and google pubsub
+- couple of security upgrades, including in the docker image
+
+
+
+_Released 2022-12-04_
+
+### [v1.39.2](https://github.com/zendesk/maxwell/releases/tag/v1.39.2)
+
+this is a bug-fix release.  some upgrades broke maxwell's http interface and there's
+a bunch of SQL parser fixes in here.
+
+
+
+_Released 2022-11-02_
+
+### [v1.39.1](https://github.com/zendesk/maxwell/releases/tag/v1.39.1)
+
+This is a faily major release, including lots of MariaDB support fixes
+and a few months worth of patches.
+
+- GTID support for MariaDB
+- Improved JSON column handling for MariaDB
+- add `--pubsub_message_ordering_key`, thanks Billy Braga
+- add `--pubsub_emulator`, thanks Billy Braga
+- add `--ignore_missing_schema` for otherwise untenable schema situations.
+- handle TABLESPACE related DDL
+
+
+
+_Released 2022-11-02_
+
 ### [v1.38.0](https://github.com/zendesk/maxwell/releases/tag/v1.38.0)
 
-- Maxwell gets the ability to talk to bigtable!  I have no idea how well
-  it'll work.  I hope it works for you!
+- Maxwell gets the ability to talk to bigtable!  I have no idea how well it'll work.  I hope it works for you!
 - upgrade protobuf to fix a rabbitmq issue with booleans, I think.
 - rabbitMQ timeouts on connection
 - other fixes.
-- I can't imagine the security department cares about my naming what
-  with what's going on inside 1019.  I guess we'll see.
--
+- I can't imagine the security department cares about my naming what with what's going on inside 1019.  I guess we'll see.
+
 
 
 
@@ -67,9 +269,7 @@ _Released 2022-03-14_
 
 ### [v1.37.1](https://github.com/zendesk/maxwell/releases/tag/v1.37.1)
 
- - list changes
-
-
+ - upgrade mysql-connector-j 
 
 _Released 2022-03-07_
 

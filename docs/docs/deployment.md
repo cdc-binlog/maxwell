@@ -1,4 +1,7 @@
-# Reconfiguring a running mysql instance:
+# Runtime reconfiguration
+
+If you've already got binlogs enabled and don't want to restart your mysql to
+configure maxwell, try this:
 
 ```
 mysql> set global binlog_format=ROW;
@@ -61,10 +64,27 @@ running in different configurations, for example producing different groups of
 tables to different topics.  Each instance of Maxwell must be configured with a
 unique `client_id`, in order to store unique binlog positions.
 
-With MySQL 5.5 and below, each replicator (be it mysql, maxwell, whatever) must
-also be configured with a unique `replica_server_id`.  This is a 32-bit integer
-that corresponds to mysql's `server_id` parameter.  The value you configure
-should be unique across all mysql and maxwell instances.
+Each version of Maxwell must also be configured with a unique
+`replica_server_id`.  This is a 32-bit integer that corresponds to mysql's
+`server_id` parameter.  The value should be unique across all maxwell instances
+and also be unique from any mysql `server_id` values.
+
+# `--init_position`
+
+This is a dangerous option that you really shouldn't use unless you know what
+you're doing.  It allows you to "rewind" history and go back to a certain point
+in the binlog.  This can work, but you should be aware that Maxwell must have
+already "visited" that binlog position; simply specifying an arbitrary position
+in the binlog will lead to Maxwell crashing. 
+
+
+# Running with limited permissions
+
+If the user you're running maxwell as can't view part of the database because of limited
+permissions, Maxwell may be unable to capture information on part of the schem a and 
+the replication stream can break with "Can't find table: XXX" errors.  In this case
+you can enable the `ignore_missing_schema` flag *and* configure a filter that will exclude
+any databases/tables you don't have permission to view. 
 
 # `--init_position`
 

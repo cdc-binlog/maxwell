@@ -6,6 +6,7 @@ import com.github.shyiko.mysql.binlog.network.SSLMode;
 import com.zendesk.maxwell.filtering.Filter;
 import com.zendesk.maxwell.filtering.InvalidFilterException;
 import com.zendesk.maxwell.monitoring.MaxwellDiagnosticContext;
+import com.zendesk.maxwell.monitoring.MaxwellHealthCheckFactory;
 import com.zendesk.maxwell.producer.EncryptionMode;
 import com.zendesk.maxwell.producer.MaxwellOutputConfig;
 import com.zendesk.maxwell.producer.ProducerFactory;
@@ -70,6 +71,13 @@ public class MaxwellConfig extends AbstractConfig {
 	public Filter filter;
 
 	/**
+	 * Ignore any missing database / table schemas, unless they're
+	 * included as part of filters. Default false.  Don't use unless
+	 * you really really need to.
+	 */
+	public Boolean ignoreMissingSchema;
+
+	/**
 	 * Attempt to use Mysql GTIDs to keep track of position
 	 */
 	public Boolean gtidMode;
@@ -99,6 +107,12 @@ public class MaxwellConfig extends AbstractConfig {
 	 * Setup with all properties prefixed `customer_producer.`
 	 */
 	public final Properties customProducerProperties;
+
+	/**
+	 * Available to customer producers for configuration.
+	 * Setup with all properties prefixed `customer_producer.`
+	 */
+	public MaxwellHealthCheckFactory customHealthFactory;
 
 	/**
 	 * String describing desired producer type: "kafka", "kinesis", etc.
@@ -224,6 +238,11 @@ public class MaxwellConfig extends AbstractConfig {
 	public Long pubsubMessageCountBatchSize;
 
 	/**
+	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} message ordering key template (will enable message ordering if specified)
+	 */
+	public String pubsubMessageOrderingKey;
+
+	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} publish delay threshold
 	 */
 	public Duration pubsubPublishDelayThreshold;
@@ -236,7 +255,7 @@ public class MaxwellConfig extends AbstractConfig {
 	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} retry delay multiplier
 	 */
-	public Double pubsubRetryDelayMultiplier;
+	public Float pubsubRetryDelayMultiplier;
 
 	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} max retry delay
@@ -251,7 +270,7 @@ public class MaxwellConfig extends AbstractConfig {
 	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} RPC timeout multiplier
 	 */
-	public Double pubsubRpcTimeoutMultiplier;
+	public Float pubsubRpcTimeoutMultiplier;
 
 	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} max RPC timeout
@@ -262,6 +281,11 @@ public class MaxwellConfig extends AbstractConfig {
 	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} total timeout
 	 */
 	public Duration pubsubTotalTimeout;
+
+	/**
+	 * {@link com.zendesk.maxwell.producer.MaxwellPubsubProducer} emulator host to use, if specified
+	 */
+	public String pubsubEmulator;
 
 	/**
 	 * {@link com.zendesk.maxwell.producer.MaxwellBigQueryProducer} project id
@@ -521,6 +545,10 @@ public class MaxwellConfig extends AbstractConfig {
 	 */
 	public boolean rabbitmqDeclareExchange;
 
+	/**
+	 * {@link com.zendesk.maxwell.producer.RabbitmqProducer} use SSL
+	 */
+	public boolean rabbitmqUseSSL;
 
 	/**
 	 * {@link com.zendesk.maxwell.producer.NatsProducer} URL
@@ -666,7 +694,7 @@ public class MaxwellConfig extends AbstractConfig {
 		parser.section("mysql");
 
 		parser.accepts( "binlog_heartbeat", "enable binlog replication heartbeats, default false" )
-			.withOptionalArg().ofType(Boolean.class);
+				.withOptionalArg().ofType(Boolean.class);
 
 		parser.accepts( "jdbc_options", "additional jdbc connection options: key1=val1&key2=val2" )
 				.withRequiredArg();
@@ -714,6 +742,57 @@ public class MaxwellConfig extends AbstractConfig {
 		parser.separator();
 		parser.accepts( "max_schemas", "Maximum schema-updates to keep before triggering a compaction operation.  Default: unlimited" )
 				.withRequiredArg();
+
+		parser.section( "output" );
+
+		parser.accepts( "output_binlog_position", "include 'position' (binlog position) field. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_gtid_position", "include 'gtid' (gtid position) field. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_commit_info", "include 'commit' and 'xid' field. default: true" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_xoffset", "include 'xoffset' (row offset inside transaction) field.  depends on '--output_commit_info'. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_nulls", "include data fields with NULL values. default: true" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_server_id", "include 'server_id' field. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_thread_id", "include 'thread_id' (client thread_id) field. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_schema_id", "include 'schema_id' (unique ID for this DDL). default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_row_query", "include 'query' field (original SQL DML query).  depends on server option 'binlog_rows_query_log_events'. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_primary_keys", "include 'primary_key' field (array of PK values). default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_primary_key_columns", "include 'primary_key_columns' field (array of PK column names). default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_null_zerodates", "convert '0000-00-00' dates/datetimes to null default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_ddl", "produce DDL records. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_push_timestamp", "include a microsecond timestamp representing when Maxwell sent a record. default: false" )
+			.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "output_naming_strategy", "optionally use an alternate name for fields: underscore_to_camelcase" )
+			.withOptionalArg().ofType(String.class);
+		parser.accepts( "exclude_columns", "suppress these comma-separated columns from output" )
+			.withRequiredArg();
+		parser.accepts("secret_key", "The secret key for the AES encryption" )
+			.withRequiredArg();
+		parser.accepts("encrypt", "encryption mode: [none|data|all]. default: none" )
+			.withRequiredArg();
+		parser.accepts( "row_query_max_length", "truncates the 'query' field if it is above this length. default: 0 (disabled)" )
+			.withOptionalArg().ofType(Integer.class);
+
+		parser.section( "filtering" );
+
+		parser.accepts( "filter", "filter specs.  specify like \"include:db.*, exclude:*.tbl, include: foo./.*bar$/, exclude:foo.bar.baz=reject\"").withRequiredArg();
+
+		parser.accepts( "ignore_missing_schema", "Ignore missing database and table schemas.  Only use running with limited permissions." )
+			.withOptionalArg().ofType(Boolean.class);
+
+		parser.accepts( "javascript", "file containing per-row javascript to execute" ).withRequiredArg();
+
 		parser.section("operation");
 
 		parser.accepts( "daemon", "run maxwell in the background" )
@@ -783,7 +862,7 @@ public class MaxwellConfig extends AbstractConfig {
 
 		parser.separator();
 
-		parser.accepts( "kafka_version", "kafka client library version: 0.8.2.2|0.9.0.1|0.10.0.1|0.10.2.1|0.11.0.1|1.0.0")
+		parser.accepts( "kafka_version", "kafka client library version: 0.8.2.2|0.9.0.1|0.10.0.1|0.10.2.1|0.11.0.1|1.0.0|2.7.0|3.4.0|3.7.1")
 				.withRequiredArg();
 		parser.accepts( "kafka_key_format", "how to format the kafka key; array|hash" )
 				.withRequiredArg();
@@ -843,65 +922,26 @@ public class MaxwellConfig extends AbstractConfig {
 				.withRequiredArg().ofType(Long.class);
 		parser.accepts( "pubsub_message_count_batch_size", "threshold in message count that triggers a batch to be sent. default: 1 message" )
 				.withRequiredArg().ofType(Long.class);
+		parser.accepts( "pubsub_message_ordering_key", "message ordering key template (will enable message ordering if specified). default: null" )
+				.withOptionalArg();
 		parser.accepts( "pubsub_publish_delay_threshold", "threshold in delay time (milliseconds) before batch is sent. default: 1 ms" )
 				.withRequiredArg().ofType(Long.class);
 		parser.accepts( "pubsub_retry_delay", "delay in millis before sending the first retry message. default: 100 ms" )
 				.withRequiredArg().ofType(Long.class);
 		parser.accepts( "pubsub_retry_delay_multiplier", "multiply by this ratio to increase delay time each retry. default: 1.3" )
-				.withRequiredArg();
+				.withRequiredArg().ofType(Float.class);
 		parser.accepts( "pubsub_max_retry_delay", "maximum retry delay time in seconds. default: 60 seconds" )
 				.withRequiredArg().ofType(Long.class);
 		parser.accepts( "pubsub_initial_rpc_timeout", "timeout for initial rpc call. default: 5 seconds" )
 				.withRequiredArg();
 		parser.accepts( "pubsub_rpc_timeout_multiplier", "backoff delay ratio for rpc timeout. default: 1.0" )
-				.withRequiredArg().ofType(Long.class);
+				.withRequiredArg().ofType(Float.class);
 		parser.accepts( "pubsub_max_rpc_timeout", "max delay in seconds for rpc timeout. default: 600 seconds" )
 				.withRequiredArg().ofType(Long.class);
 		parser.accepts( "pubsub_total_timeout", "maximum timeout in seconds (clamps exponential backoff)" )
 				.withRequiredArg().ofType(Long.class);
-
-		parser.section( "output" );
-
-		parser.accepts( "output_binlog_position", "include 'position' (binlog position) field. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_gtid_position", "include 'gtid' (gtid position) field. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_commit_info", "include 'commit' and 'xid' field. default: true" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_xoffset", "include 'xoffset' (row offset inside transaction) field.  depends on '--output_commit_info'. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_nulls", "include data fields with NULL values. default: true" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_server_id", "include 'server_id' field. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_thread_id", "include 'thread_id' (client thread_id) field. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_schema_id", "include 'schema_id' (unique ID for this DDL). default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_row_query", "include 'query' field (original SQL DML query).  depends on server option 'binlog_rows_query_log_events'. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_primary_keys", "include 'primary_key' field (array of PK values). default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_primary_key_columns", "include 'primary_key_columns' field (array of PK column names). default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_null_zerodates", "convert '0000-00-00' dates/datetimes to null default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_ddl", "produce DDL records. default: false" )
-				.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "output_push_timestamp", "include a microsecond timestamp representing when Maxwell sent a record. default: false" )
-			.withOptionalArg().ofType(Boolean.class);
-		parser.accepts( "exclude_columns", "suppress these comma-separated columns from output" )
-				.withRequiredArg();
-		parser.accepts("secret_key", "The secret key for the AES encryption" )
-				.withRequiredArg();
-		parser.accepts("encrypt", "encryption mode: [none|data|all]. default: none" )
-				.withRequiredArg();
-
-		parser.section( "filtering" );
-
-		parser.accepts( "filter", "filter specs.  specify like \"include:db.*, exclude:*.tbl, include: foo./.*bar$/, exclude:foo.bar.baz=reject\"").withRequiredArg();
-
-		parser.accepts( "javascript", "file containing per-row javascript to execute" ).withRequiredArg();
+		parser.accepts( "pubsub_emulator", "pubsub emulator host to use. default: null" )
+				.withOptionalArg();
 
 		parser.section( "rabbitmq" );
 
@@ -919,6 +959,7 @@ public class MaxwellConfig extends AbstractConfig {
 		parser.accepts( "rabbitmq_routing_key_template", "A string template for the routing key, '%db%' and '%table%' will be substituted. Default is '%db%.%table%'." ).withRequiredArg();
 		parser.accepts( "rabbitmq_message_persistent", "Message persistence. Defaults to false" ).withOptionalArg();
 		parser.accepts( "rabbitmq_declare_exchange", "Should declare the exchange for rabbitmq publisher. Defaults to true" ).withOptionalArg();
+		parser.accepts( "rabbitmq_use_ssl", "If true, will connect to the server using SSL. Defaults to false" ).withOptionalArg();
 
 		parser.section( "redis" );
 
@@ -932,7 +973,7 @@ public class MaxwellConfig extends AbstractConfig {
 		parser.accepts("redis_sentinels", "List of Redis sentinels in format host1:port1,host2:port2,host3:port3. It can be used instead of redis_host and redis_port" ).withRequiredArg();
 		parser.accepts("redis_sentinel_master_name", "Redis sentinel master name. It is used with redis_sentinels" ).withRequiredArg();
 
-		parser.section("metrics");
+		parser.section("monitoring");
 
 		parser.accepts( "metrics_prefix", "the prefix maxwell will apply to all metrics" ).withRequiredArg();
 		parser.accepts( "metrics_type", "how maxwell metrics will be reported, at least one of slf4j|jmx|http|datadog|stackdriver" ).withRequiredArg();
@@ -946,9 +987,8 @@ public class MaxwellConfig extends AbstractConfig {
 		parser.accepts( "metrics_datadog_site", "the site to publish metrics to when metrics_datadog_type = http, one of us|eu, default us" ).withRequiredArg();
 		parser.accepts( "metrics_datadog_host", "the host to publish metrics to when metrics_datadog_type = udp" ).withRequiredArg();
 		parser.accepts( "metrics_datadog_port", "the port to publish metrics to when metrics_datadog_type = udp" ).withRequiredArg().ofType(Integer.class);
+		parser.accepts( "custom_health.factory", "fully qualified custom maxwell health check").withRequiredArg();
 
-
-		parser.section("http");
 		parser.accepts( "http_port", "the port the server will bind to when http reporting is configured" ).withRequiredArg().ofType(Integer.class);
 		parser.accepts( "http_path_prefix", "the http path prefix when metrics_type includes http or diagnostic is enabled, default /" ).withRequiredArg();
 		parser.accepts( "http_bind_address", "the ip address the server will bind to when http reporting is configured" ).withRequiredArg();
@@ -1047,14 +1087,16 @@ public class MaxwellConfig extends AbstractConfig {
 		this.ddlPubsubTopic						= fetchStringOption("ddl_pubsub_topic", options, properties, this.pubsubTopic);
 		this.pubsubRequestBytesThreshold		= fetchLongOption("pubsub_request_bytes_threshold", options, properties, 1L);
 		this.pubsubMessageCountBatchSize		= fetchLongOption("pubsub_message_count_batch_size", options, properties, 1L);
+		this.pubsubMessageOrderingKey			= fetchStringOption("pubsub_message_ordering_key", options, properties, null);
 		this.pubsubPublishDelayThreshold		= Duration.ofMillis(fetchLongOption("pubsub_publish_delay_threshold", options, properties, 1L));
 		this.pubsubRetryDelay 					= Duration.ofMillis(fetchLongOption("pubsub_retry_delay", options, properties, 100L));
-		this.pubsubRetryDelayMultiplier 		= Double.parseDouble(fetchStringOption("pubsub_retry_delay_multiplier", options, properties, "1.3"));
+		this.pubsubRetryDelayMultiplier 		= fetchFloatOption("pubsub_retry_delay_multiplier", options, properties, 1.3f);
 		this.pubsubMaxRetryDelay 		 		= Duration.ofSeconds(fetchLongOption("pubsub_max_retry_delay", options, properties, 60L));
 		this.pubsubInitialRpcTimeout 		 	= Duration.ofSeconds(fetchLongOption("pubsub_initial_rpc_timeout", options, properties, 5L));
-		this.pubsubRpcTimeoutMultiplier 		= Double.parseDouble(fetchStringOption("pubsub_rpc_timeout_multiplier", options, properties, "1.0"));
+		this.pubsubRpcTimeoutMultiplier 		= fetchFloatOption("pubsub_rpc_timeout_multiplier", options, properties, 1.0f);
 		this.pubsubMaxRpcTimeout 		 		= Duration.ofSeconds(fetchLongOption("pubsub_max_rpc_timeout", options, properties, 600L));
 		this.pubsubTotalTimeout 		 		= Duration.ofSeconds(fetchLongOption("pubsub_total_timeout", options, properties, 600L));
+		this.pubsubEmulator						= fetchStringOption("pubsub_emulator", options, properties, null);
 
 		this.rabbitmqHost           		= fetchStringOption("rabbitmq_host", options, properties, null);
 		this.rabbitmqPort 			= fetchIntegerOption("rabbitmq_port", options, properties, null);
@@ -1070,6 +1112,7 @@ public class MaxwellConfig extends AbstractConfig {
 		this.rabbitmqRoutingKeyTemplate   	= fetchStringOption("rabbitmq_routing_key_template", options, properties, "%db%.%table%");
 		this.rabbitmqMessagePersistent    	= fetchBooleanOption("rabbitmq_message_persistent", options, properties, false);
 		this.rabbitmqDeclareExchange		= fetchBooleanOption("rabbitmq_declare_exchange", options, properties, true);
+		this.rabbitmqUseSSL			= fetchBooleanOption("rabbitmq_use_ssl", options, properties, false);
 
 		this.natsUrl			= fetchStringOption("nats_url", options, properties, "nats://localhost:4222");
 		this.natsSubject		= fetchStringOption("nats_subject", options, properties, "%{database}.%{table}");
@@ -1126,6 +1169,7 @@ public class MaxwellConfig extends AbstractConfig {
 		this.metricsReportingType = fetchStringOption("metrics_type", options, properties, null);
 		this.metricsSlf4jInterval = fetchLongOption("metrics_slf4j_interval", options, properties, 60L);
 
+		this.customHealthFactory = fetchHealthCheckFactory(options, properties);
 		this.httpPort = fetchIntegerOption("http_port", options, properties, 8080);
 		this.httpBindAddress = fetchStringOption("http_bind_address", options, properties, null);
 		this.httpPathPrefix = fetchStringOption("http_path_prefix", options, properties, "/");
@@ -1150,6 +1194,7 @@ public class MaxwellConfig extends AbstractConfig {
 		this.enableHttpConfig = fetchBooleanOption("http_config", options, properties, false);
 
 		this.filterList          = fetchStringOption("filter", options, properties, null);
+		this.ignoreMissingSchema          =  fetchBooleanOption("ignore_missing_schema", options, properties, false);
 
 		setupInitPosition(options);
 
@@ -1169,6 +1214,7 @@ public class MaxwellConfig extends AbstractConfig {
 		outputConfig.includesThreadId = fetchBooleanOption("output_thread_id", options, properties, false);
 		outputConfig.includesSchemaId = fetchBooleanOption("output_schema_id", options, properties, false);
 		outputConfig.includesRowQuery = fetchBooleanOption("output_row_query", options, properties, false);
+		outputConfig.rowQueryMaxLength = fetchIntegerOption("row_query_max_length", options, properties, 0);
 		outputConfig.includesPrimaryKeys = fetchBooleanOption("output_primary_keys", options, properties, false);
 		outputConfig.includesPrimaryKeyColumns = fetchBooleanOption("output_primary_key_columns", options, properties, false);
 		outputConfig.includesPushTimestamp = fetchBooleanOption("output_push_timestamp", options, properties, false);
@@ -1305,6 +1351,9 @@ public class MaxwellConfig extends AbstractConfig {
 		} else if (this.producerType.equals("sns") && this.snsTopic == null) {
 			usageForOptions("please specify a topic ARN for SNS", "sns_topic");
 		} else if (this.producerType.equals("pubsub")) {
+			if (this.pubsubProjectId == null)
+				usageForOptions("please specify --pubsub_project_id.", "--pubsub_project_id");
+
 			if (this.pubsubRequestBytesThreshold <= 0L)
 				usage("--pubsub_request_bytes_threshold must be > 0");
 			if (this.pubsubMessageCountBatchSize <= 0L)
@@ -1456,21 +1505,14 @@ public class MaxwellConfig extends AbstractConfig {
 		}
 	}
 
-	/**
-	 * If present in the configuration, build an instance of a custom producer factor
-	 * @param options command line arguments
-	 * @param properties properties from config.properties
-	 * @return NULL or ProducerFactory instance
-	 */
-	protected ProducerFactory fetchProducerFactory(OptionSet options, Properties properties) {
-		String name = "custom_producer.factory";
+	private <T> T fetchFactory(OptionSet options, Properties properties, String name) {
 		String strOption = fetchStringOption(name, options, properties, null);
 		if ( strOption != null ) {
 			try {
 				Class<?> clazz = Class.forName(strOption);
 				Class[] carg = new Class[0];
 				Constructor ct = clazz.getDeclaredConstructor(carg);
-				return (ProducerFactory) ct.newInstance();
+				return (T) ct.newInstance();
 			} catch ( ClassNotFoundException e ) {
 				usageForOptions("Invalid value for " + name + ", class '" + strOption + "' not found", "--" + name);
 			} catch ( IllegalAccessException | InstantiationException | ClassCastException e) {
@@ -1486,5 +1528,35 @@ public class MaxwellConfig extends AbstractConfig {
 		} else {
 			return null;
 		}
+
+	}
+	/**
+	 * If present in the configuration, build an instance of a custom producer factor
+	 * @param options command line arguments
+	 * @param properties properties from config.properties
+	 * @return NULL or ProducerFactory instance
+	 */
+	protected ProducerFactory fetchProducerFactory(OptionSet options, Properties properties) {
+		return fetchFactory(options, properties, "custom_producer.factory");
+	}
+
+
+	/**
+	 * If present in the configuration, build an instance of a custom health factory
+	 * @param options command line arguments
+	 * @param properties properties from config.properties
+	 * @return NULL or MaxwellHealthCheckFactory instance
+	 */
+	protected MaxwellHealthCheckFactory fetchHealthCheckFactory(OptionSet options, Properties properties) {
+		return fetchFactory(options, properties, "custom_health.factory");
+	}
+
+
+	public Boolean getIgnoreMissingSchema() {
+		return ignoreMissingSchema;
+	}
+
+	public void setIgnoreMissingSchema(Boolean ignoreMissingSchema) {
+		this.ignoreMissingSchema = ignoreMissingSchema;
 	}
 }

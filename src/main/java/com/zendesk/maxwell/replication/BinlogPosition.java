@@ -1,6 +1,10 @@
 package com.zendesk.maxwell.replication;
 
 import com.github.shyiko.mysql.binlog.GtidSet;
+
+import com.github.shyiko.mysql.binlog.MariadbGtidSet;
+import com.zendesk.maxwell.MaxwellCompatibilityError;
+import com.zendesk.maxwell.MaxwellMysqlStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +23,7 @@ public class BinlogPosition implements Serializable {
 	private static final String POSITION_COLUMN = "Position";
 	private static final String GTID_COLUMN = "Executed_Gtid_Set";
 
-	private final String gtidSetStr;
+	private String gtidSetStr;
 	private final String gtid;
 	private final long offset;
 	private final Long fileNumber;
@@ -38,14 +42,23 @@ public class BinlogPosition implements Serializable {
 	}
 
 	public static BinlogPosition capture(Connection c, boolean gtidMode) throws SQLException {
+		MaxwellMysqlStatus m = new MaxwellMysqlStatus(c);
+
+
+
+
 		try ( Statement stmt = c.createStatement();
-		      ResultSet rs = stmt.executeQuery("SHOW MASTER STATUS") ) {
+		      ResultSet rs = stmt.executeQuery(m.getShowBinlogSQL())) {
 			rs.next();
 			long l = rs.getInt(POSITION_COLUMN);
 			String file = rs.getString(FILE_COLUMN);
 			String gtidSetStr = null;
 			if (gtidMode) {
-				gtidSetStr = rs.getString(GTID_COLUMN);
+				if ( m.isMaria() ) {
+					gtidSetStr = m.getVariableState("gtid_binlog_state");
+				} else {
+					gtidSetStr = rs.getString(GTID_COLUMN);
+				}
 			}
 			return new BinlogPosition(gtidSetStr, null, l, file);
 		}
@@ -79,8 +92,32 @@ public class BinlogPosition implements Serializable {
 		return gtidSetStr;
 	}
 
+	public BinlogPosition addGtid(String gtid, long offset, String file) {
+		GtidSet set = this.getGtidSet();
+		if ( set == null )
+			return new BinlogPosition(offset, file);
+
+		set.add(gtid);
+		return new BinlogPosition(set.toSeenString(), gtid, offset, file);
+	}
+
+	public void mergeGtids(GtidSet seenSet) {
+		if ( seenSet == null ) {
+			this.gtidSetStr = this.gtid;
+		} else {
+			seenSet.add(this.getGtid());
+			this.gtidSetStr = seenSet.toSeenString();
+		}
+	}
+
 	public GtidSet getGtidSet() {
-		return new GtidSet(gtidSetStr);
+		if ( gtidSetStr == null )
+			return null;
+
+		if ( MariadbGtidSet.isMariaGtidSet(gtidSetStr) )
+			return new MariadbGtidSet((gtidSetStr));
+		else
+			return new GtidSet(gtidSetStr);
 	}
 
 	@Override
@@ -100,7 +137,7 @@ public class BinlogPosition implements Serializable {
 	private Long parseFileNumber(String filename) {
 		filename = filename.endsWith(GZIP_SUFFIX) ? filename.substring(0,filename.length()-3) : filename;
 		String[] split = filename.split("\\.");
-		if (split.length < 2) {
+		if ( split.length < 2 ) {
 			return null;
 		} else {
 			return Long.valueOf(split[split.length - 1]);
@@ -158,4 +195,5 @@ public class BinlogPosition implements Serializable {
 			return Long.valueOf(offset).hashCode();
 		}
 	}
+
 }

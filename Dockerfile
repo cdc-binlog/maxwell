@@ -1,5 +1,6 @@
-FROM maven:3.6-jdk-11 as builder
-ENV MAXWELL_VERSION=1.38.0 KAFKA_VERSION=1.0.0
+FROM maven:3.9.9-eclipse-temurin-23 AS builder
+ENV MAXWELL_VERSION=1.44.0 KAFKA_VERSION=1.0.0
+
 
 RUN apt-get update \
     && apt-get -y upgrade \
@@ -19,14 +20,21 @@ RUN cd /workspace \
     && echo "$MAXWELL_VERSION" > /REVISION
 
 # Build clean image with non-root priveledge
-FROM openjdk:11-jdk-slim
+FROM openjdk:23-jdk-slim
+
+RUN apt-get update \
+    && apt-get -y upgrade
+
+# Add curl, required to add an healthcheck as a docker command
+RUN apt-get -y install --no-install-recommends curl jq
 
 COPY --from=builder /app /app
+COPY --from=builder /REVISION /REVISION
 
 WORKDIR /app
 
 RUN useradd -u 1000 maxwell -d /app
-RUN chown 1000:1000 /app && echo "$MAXWELL_VERSION" > /REVISION
+RUN chown 1000:1000 /app
 
 USER 1000
 

@@ -52,7 +52,7 @@ option                         | argument                            | descripti
 producer                       | [PRODUCER_TYPE](#producer_type)     | type of producer to use                             | stdout
 custom_producer.factory        | CLASS_NAME                          | fully qualified custom producer factory class, see [example](https://github.com/zendesk/maxwell/blob/master/src/example/com/zendesk/maxwell/example/producerfactory/CustomProducerFactory.java) |
 producer_ack_timeout           | [PRODUCER_ACK_TIMEOUT](#ack_timeout) | time in milliseconds before async producers consider a message lost |
-producer_partition_by          | [PARTITION_BY](#partition_by)       | input to kafka/kinesis partition function           | database
+producer_partition_by          | [PARTITION_BY](#partition_by)       | input to kafka/kinesis/sns/sqs partition function           | database
 producer_partition_columns     | STRING                              | if partitioning by 'column', a comma separated list of columns |
 producer_partition_by_fallback | [PARTITION_BY_FALLBACK](#partition_by_fallback) | required when producer_partition_by=column.  Used when the column is missing |
 ignore_producer_error          | BOOLEAN              | When false, Maxwell will terminate on kafka/kinesis/pubsub publish errors (aside from RecordTooLargeException). When true, errors are only logged. See also dead_letter_topic | true
@@ -118,6 +118,7 @@ pubsub_platform_id             | STRING     | Google Cloud platform id associate
 ddl_pubsub_topic               | STRING     | Google Cloud pub-sub topic to send DDL events to |
 pubsub_request_bytes_threshold | LONG       | Set number of bytes until batch is send | 1
 pubsub_message_count_batch_size| LONG       | Set number of messages until batch is send | 1
+pubsub_message_ordering_key    | STRING     | Google Cloud pub-sub ordering key template (also enables message ordering when set) |
 pubsub_publish_delay_threshold | LONG       | Set time passed in millis until batch is send | 1
 pubsub_retry_delay             | LONG       | Controls the delay in millis before sending the first retry message | 100
 pubsub_retry_delay_multiplier  | FLOAT      | Controls the increase in retry delay per retry | 1.3
@@ -126,6 +127,7 @@ pubsub_initial_rpc_timeout     | LONG       | Controls the timeout in seconds fo
 pubsub_rpc_timeout_multiplier  | FLOAT      | Controls the change in RPC timeout | 1.0
 pubsub_max_rpc_timeout         | LONG       | Puts a limit on the value in seconds of the RPC timeout | 600
 pubsub_total_timeout           | LONG       | Puts a limit on the value in seconds of the retry delay, so that the RetryDelayMultiplier can't increase the retry delay higher than this amount | 600
+pubsub_emulator                | STRING     | Google Cloud pub-sub emulator host to send events to |
 
 _See also:_ [PubSub Producer Documentation](/producers#google-cloud-pubsub)
 
@@ -154,6 +156,7 @@ rabbitmq_exchange_autodelete   | BOOLEAN    | If set, the exchange is deleted wh
 rabbitmq_routing_key_template  | STRING     | A string template for the routing key, `%db%` and `%table%` will be substituted. | `%db%.%table%`.
 rabbitmq_message_persistent    | BOOLEAN    | Eanble message persistence. | false
 rabbitmq_declare_exchange      | BOOLEAN    | Should declare the exchange for rabbitmq publisher | true
+rabbitmq_use_ssl               | BOOLEAN    | If true, will connect to the server using SSL. | false
 
 _See also:_ [RabbitMQ Producer Documentation](/producers#rabbitmq)
 
@@ -186,6 +189,7 @@ output_server_id               | BOOLEAN  | records include server_id           
 output_thread_id               | BOOLEAN  | records include thread_id                  | false
 output_schema_id               | BOOLEAN  | records include schema_id, schema_id is the id of the latest schema tracked by maxwell and doesn't relate to any mysql tracked value                  | false
 output_row_query               | BOOLEAN  | records include INSERT/UPDATE/DELETE statement. Mysql option "binlog_rows_query_log_events" must be enabled | false
+row_query_max_length           | INT      | The maximum number of characters output in the "query" field. The rest will be truncated.
 output_primary_keys            | BOOLEAN  | DML records include list of values that make up a row's primary key | false
 output_primary_key_columns     | BOOLEAN  | DML records include list of columns that make up a row's primary key | false
 output_ddl                     | BOOLEAN  | output DDL (table-alter, table-create, etc) events  | false
@@ -234,6 +238,7 @@ metrics_datadog_apikey   | STRING | the datadog api key to use when metrics_data
 metrics_datadog_site     | STRING | the site to publish metrics to when metrics_datadog_type = `http` | us
 metrics_datadog_host     | STRING | the host to publish metrics to when metrics_datadog_type = `udp` | localhost
 metrics_datadog_port     | INT | the port to publish metrics to when metrics_datadog_type = `udp` | 8125
+custom_health.factory	| CLASS_NAME                          | fully qualified maxwell health check factory class, see [example](https://github.com/zendesk/maxwell/blob/master/src/example/com/zendesk/maxwell/example/maxwellhealthcheckfactory/CustomMaxwellHealthCheckFactory.java) |
 
 _See also:_ [Monitoring](/monitoring)
 
