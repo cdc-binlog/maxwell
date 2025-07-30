@@ -25,7 +25,7 @@ public class BinlogConnectorEvent {
 		this.event = event;
 		this.gtidSetStr = gtidSetStr;
 		this.gtid = gtid;
-		EventHeaderV4 hV4 = event.getHeader();
+		EventHeaderV4 hV4 = (EventHeaderV4) event.getHeader();
 		this.nextPosition = new BinlogPosition(gtidSetStr, gtid, hV4.getNextPosition(), filename);
 		this.position = new BinlogPosition(gtidSetStr, gtid, hV4.getPosition(), filename);
 		this.outputConfig = outputConfig;

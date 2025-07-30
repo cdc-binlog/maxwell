@@ -701,8 +701,7 @@ public class BinlogConnectorReplicator extends RunLoopProcess implements Replica
 				} else {
 					try {
 						ensureReplicatorThread();
-					} catch (ClientReconnectedException ignored) {
-					}
+					} catch ( ClientReconnectedException e ) {}
 					return null;
 				}
 			}
@@ -730,7 +729,7 @@ public class BinlogConnectorReplicator extends RunLoopProcess implements Replica
 					if (BinlogConnectorEvent.BEGIN.equals(sql)) {
 						try {
 							rowBuffer = getTransactionRows(event);
-						} catch (ClientReconnectedException e) {
+						} catch ( ClientReconnectedException e ) {
 							// rowBuffer should already be empty by the time we get to this switch
 							// statement, but we null it for clarity
 							rowBuffer = null;

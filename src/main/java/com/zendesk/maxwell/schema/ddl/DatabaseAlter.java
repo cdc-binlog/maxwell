@@ -1,7 +1,7 @@
 package com.zendesk.maxwell.schema.ddl;
 
 import com.zendesk.maxwell.filtering.Filter;
-import com.zendesk.maxwell.schema.Schema;
+import com.zendesk.maxwell.schema.*;
 
 public class DatabaseAlter extends SchemaChange {
 	public String database;

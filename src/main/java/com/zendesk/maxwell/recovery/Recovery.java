@@ -5,7 +5,11 @@ import com.zendesk.maxwell.MaxwellMysqlConfig;
 import com.zendesk.maxwell.monitoring.Metrics;
 import com.zendesk.maxwell.monitoring.NoOpMetrics;
 import com.zendesk.maxwell.producer.MaxwellOutputConfig;
-import com.zendesk.maxwell.replication.*;
+import com.zendesk.maxwell.replication.BinlogConnectorReplicator;
+import com.zendesk.maxwell.replication.BinlogPosition;
+import com.zendesk.maxwell.replication.HeartbeatNotifier;
+import com.zendesk.maxwell.replication.Position;
+import com.zendesk.maxwell.replication.Replicator;
 import com.zendesk.maxwell.row.HeartbeatRowMap;
 import com.zendesk.maxwell.row.RowMap;
 import com.zendesk.maxwell.util.ConnectionPool;
@@ -18,8 +22,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.zendesk.maxwell.replication.BinlogConnectorReplicator.BINLOG_QUEUE_SIZE;
 
 public class Recovery {
 	static final Logger LOGGER = LoggerFactory.getLogger(Recovery.class);
@@ -114,8 +116,8 @@ public class Recovery {
 	private List<BinlogPosition> getBinlogInfo() throws SQLException {
 		ArrayList<BinlogPosition> list = new ArrayList<>();
 		try ( Connection c = replicationConnectionPool.getConnection() ;
-		      Statement s = c.createStatement();
-		      ResultSet rs = s.executeQuery("SHOW BINARY LOGS") ) {
+			  Statement s = c.createStatement();
+			  ResultSet rs = s.executeQuery("SHOW BINARY LOGS") ) {
 			while ( rs.next() ) {
 				list.add(BinlogPosition.at(4, rs.getString("Log_name")));
 			}
